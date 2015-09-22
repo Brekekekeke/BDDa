@@ -97,3 +97,47 @@ CREATE TABLE Horaires (
     INSERT INTO Etudiants (NumEtu, NomEtu, PrenomEtu) VALUES (3, 'Pais', 'Marie');
     INSERT INTO Etudiants (NumEtu, NomEtu, PrenomEtu) VALUES (5, 'Poujol', 'Simon');
     INSERT INTO Etudiants (NumEtu, NomEtu, PrenomEtu) VALUES (7, 'Bonet', 'Clement');
+    
+    INSERT INTO Salles (NumSal, NomSal, CapaciteSal) VALUES (1, "A", 10);
+    INSERT INTO Salles (NumSal, NomSal, CapaciteSal) VALUES (10, "B", 150);
+    INSERT INTO Salles (NumSal, NomSal, CapaciteSal) VALUES (8, "C", 200);
+    INSERT INTO Salles (NumSal, NomSal, CapaciteSal) VALUES (1, "D", 50);
+    INSERT INTO Salles (NumSal, NomSal, CapaciteSal) VALUES (8, "E", 1);
+    INSERT INTO Salles (NumSal, NomSal, CapaciteSal) VALUES (8, "F", 2);
+    
+    
+    /* C1 : Deux épreuves qui se chevauchent ne peuvent rassembler le même étudiant */
+    /*
+		Pour tout I1, I1 € Inscription
+		Si I1[NumEtu, NumEpr] == I2[NumEtu, NumEpr]
+		Alors NOT OVERLAPS (Horaires[ I1[NumEpr] ].DateHeureDebut, idem + Epreuves[ I1[NumEpr] ].DureeEpr,
+							Horaires[ I2[NumEpr] ].DateHeureDebut, idem + Epreuves[ I2[NumEpr] ].DureeEpr)
+	*/
+	/*
+						Insert	Delete	Update
+		Epreuves		-		-		Diff
+		Inscriptions	Imm		-		Diff
+		Horaires		Imm		-		Diff
+
+	*/
+	CREATE OR REPLACE TRIGGER C1_Modif_Epr
+		AFTER UPDATE OF (DureeEpr)
+		DECLARE N INTEGER
+		BEGIN
+			SELECT 1 INTO N FROM Inscriptions I1, Inscriptions I2
+			WHERE
+				I1.NumEtu = I2.NumEtu AND
+				I1.NumEpr <> I2.NumEpr AND
+				OVERLAPS (
+					Horaires[I1.NumEpr].DateHeureDebut,
+					(Horaires[I1.NumEpr].DateHeureDebut + Epreuves[I1.NumEpr].DureeEpr),
+					Horaires[I2.NumEpr].DateHeureDebut,
+					(Horaires[I2.NumEpr].DateHeureDebut + Epreuves[I2.NumEpr].DureeEpr)
+				);
+			EXCEPTION
+				WHEN NO_DATA_FOUND THEN NULL;
+				WHEN TOO_MANY_ROWS THEN raise_application_error(/*code erreur*/, 'Viol C1_Modif_Epr');
+		END;
+		/
+				
+			
